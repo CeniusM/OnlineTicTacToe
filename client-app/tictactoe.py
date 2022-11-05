@@ -15,7 +15,15 @@ class TicTacToe:
                 raise Exception(f"Received invalid move at position {move} by remote player.")
             self.board[move] = "X"
             self._display()
-            move = int(input("Select field: "))
+
+            while True:
+                msg = input("Select field: ")
+                if msg.isdecimal():
+                    move = int(msg)
+                    break
+                else:
+                    self.communicator.send_message(msg)
+
             self.board[move] = "O"
             self.communicator.send_position(move)
 
