@@ -15,10 +15,10 @@ public class TicTacToe
 
     }
 
-    public void MakeMove(int move)
+    public bool MakeMove(int move)
     {
         if (board[move] != 0 || isGameOver)
-            return;
+            return false;
 
         board[move] = player;
         _moves++;
@@ -27,17 +27,18 @@ public class TicTacToe
         {
             winner = player;
             isGameOver = true;
-            return;
+            return true;
         }
 
         if (_moves == 9)
         {
             winner = 0;
             isGameOver = true;
-            return;
+            return true;
         }
 
         player ^= 0b11; // change player
+        return true;
     }
 
     public bool GameOverCheck()
