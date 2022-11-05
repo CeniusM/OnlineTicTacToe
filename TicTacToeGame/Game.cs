@@ -2,6 +2,7 @@
 using System.Net.Sockets;
 using System.Net;
 using System.Collections.Concurrent;
+using System.Text;
 
 namespace TicTacToeGame;
 
@@ -23,11 +24,19 @@ internal class Game
 
     NetworkStream? OpponentDataStream = null;
 
+
+    enum IDType
+    {
+        Move = 1,
+        Message = 2,
+    }
+    List<(byte ID, byte[] Data)> Batches = new List<(byte ID, byte[] Data)>();
+
     TicTacToeGameLoop gameLoop;
 
     public Game()
     {
-        gameLoop = new TicTacToeGameLoop(SendMove, TryGetMove);
+        gameLoop = new TicTacToeGameLoop(SendMove, TryGetMove, SendMessage, TryGetMessage);
     }
 
     public void Start()
@@ -147,7 +156,95 @@ internal class Game
         Console.Clear();
     }
 
+    private void UpdateBatches()
+    {
+        while (NetworkStream is not null)
+        {
+            // Get id of data or break if none
+            if (!Data.TryDequeue(out byte ID))
+                break;
+
+            if (ID == (int)IDType.Move)
+            {
+                byte[] arr = new byte[1];
+                while (true)
+                {
+                    if (Data.TryDequeue(out byte Value))
+                    {
+                        arr[0] = Value;
+                        break;
+                    }
+                }
+                Batches.Add(((byte)ID, arr));
+            }
+
+            // A Messege
+            else if (ID == 2)
+            {
+                List<byte> bytes = new List<byte>();
+
+                bytes.Add(2);
+
+                for (int i = 0; i < 4; i++)
+                {
+                    if (Data.TryDequeue(out byte value))
+                        bytes.Add(value);
+                    else
+                        i--;
+                }
+
+                int size = BitConverter.ToInt32(bytes.Take(new Range(1, 5)).ToArray(), 0);
+
+                for (int i = 0; i < size; i++)
+                {
+                    if (Data.TryDequeue(out byte value))
+                        bytes.Add(value);
+                    else
+                        i--;
+                }
+
+
+                Batches.Add((ID, bytes.Take(new Range(5, bytes.Count)).ToArray()));
+            }
+        }
+    }
+
     // Functions for the GameLoop
+
+    /// <summary>
+    /// Get the next message in Batches
+    /// </summary>
+    /// <returns></returns>
+    private (bool MessageReady, string Message) TryGetMessage()
+    {
+        UpdateBatches();
+
+        string message = "";
+        for (int i = 0; i < Batches.Count; i++)
+        {
+            if (Batches[i].ID == (int)IDType.Message)
+            {
+                message = Encoding.UTF8.GetString(Batches[i].Data);
+
+                Batches.RemoveAt(i);
+
+                return (true, message);
+            }
+        }
+
+        return (false, "NULL");
+    }
+
+    private void SendMessage(string message)
+    {
+        List<byte> bytesList = new List<byte>(message.Length + 5);
+        bytesList.Add(2);
+        bytesList.AddRange(BitConverter.GetBytes(message.Length));
+        bytesList.AddRange(Encoding.UTF8.GetBytes(message, 0, message.Length));
+
+        if (NetworkStream is not null)
+            NetworkStream.Write(bytesList.ToArray(), 0, bytesList.Count);
+    }
 
     /// <summary>
     /// Gets the last send byte and treats that as the move
@@ -155,10 +252,17 @@ internal class Game
     /// <returns></returns>
     private int TryGetMove()
     {
+        UpdateBatches();
+
         int move = -1;
-        while (Data.Count != 0 && Data.TryDequeue(out byte Value))
+        for (int i = 0; i < Batches.Count; i++)
         {
-            move = Value;
+            if (Batches[i].ID == 1)
+            {
+                move = (int)Batches[i].Data[0];
+                Batches.RemoveAt(i);
+                i--;
+            }
         }
 
         if (move < 0 || move > 8)
@@ -176,7 +280,12 @@ internal class Game
             return;
 
         if (NetworkStream is not null)
-            NetworkStream.WriteByte((byte)move);
+        {
+            byte[] arr = new byte[2];
+            arr[0] = 1;
+            arr[1] = (byte)move;
+            NetworkStream.Write(arr, 0, 2);
+        }
     }
 
     ~Game()

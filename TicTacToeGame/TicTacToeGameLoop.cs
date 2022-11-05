@@ -6,6 +6,8 @@ internal class TicTacToeGameLoop
 {
     private Action<int> SendMove;
     private Func<int> TryGetMove;
+    private Action<string> SendMessage;
+    private Func<(bool MessageReady, string Message)> TryGetMessage;
 
     private int ThisPlayer = 1;
 
@@ -19,10 +21,17 @@ internal class TicTacToeGameLoop
     /// </summary>
     /// <param name="SendMove"></param>
     /// <param name="TryGetMove"></param>
-    public TicTacToeGameLoop(Action<int> SendMove, Func<int> TryGetMove)
+    public TicTacToeGameLoop(
+        Action<int> SendMove,
+        Func<int> TryGetMove,
+        Action<string> SendMessage,
+        Func<(bool MessageReady, string Message)> TryGetMessage
+        )
     {
         this.SendMove = SendMove;
         this.TryGetMove = TryGetMove;
+        this.SendMessage = SendMessage;
+        this.TryGetMessage = TryGetMessage;
         IsRunning = false;
     }
 
@@ -31,6 +40,12 @@ internal class TicTacToeGameLoop
     /// </summary>
     public void Start()
     {
+        //FillRect('@', 10, 10, 10, 10);
+        //FillRect('b', 10, 20, 10, 10);
+        //FillRect('C', 10, 30, 20, 20);
+
+        //SendMessage("HELP SOS IM FRICKED");
+
         if (IsRunning)
             return;
         IsRunning = true;
@@ -50,7 +65,20 @@ internal class TicTacToeGameLoop
                 // This player
                 while (true)
                 {
-                    Console.Clear();
+                    // Messages
+                    var MabyMessage = TryGetMessage();
+                    if (MabyMessage.MessageReady)
+                    {
+                        (int Left, int Right) poss = Console.GetCursorPosition();
+                        FillRect(' ', 30, 0, MabyMessage.Message.Length, 1);
+                        Console.SetCursorPosition(30, 0);
+                        Console.Write(MabyMessage.Message);
+                        Console.SetCursorPosition(poss.Left, poss.Right);
+                    }
+
+                    // clear board
+                    FillRect(' ', 0, 0, 20, 10);
+
                     PrintBoard(0, 0);
 
                     (int Left, int Right) pos = Console.GetCursorPosition();
@@ -60,7 +88,10 @@ internal class TicTacToeGameLoop
                     string[] Inputs = Input.Split(" ");
 
                     if (Inputs.Length != 2 || !int.TryParse(Inputs[0], out int foo0) || !int.TryParse(Inputs[1], out int foo1))
+                    {
+                        SendMessage(Input);
                         continue;
+                    }
 
                     int x = int.Parse(Inputs[0]) - 1;
                     int y = 4 - int.Parse(Inputs[1]) - 1;
@@ -77,7 +108,8 @@ internal class TicTacToeGameLoop
             }
             else
             {
-                Console.Clear();
+                // clear board
+                FillRect(' ', 0, 0, 20, 10);
 
                 // Oponnent
                 PrintBoard(0, 0);
@@ -85,6 +117,18 @@ internal class TicTacToeGameLoop
                 int Waited = 0;
                 while (game.player != ThisPlayer)
                 {
+                    // Messages
+                    var MabyMessage = TryGetMessage();
+                    if (MabyMessage.MessageReady)
+                    {
+                        (int Left, int Right) poss = Console.GetCursorPosition();
+                        FillRect(' ', 30, 0, MabyMessage.Message.Length, 1);
+                        Console.SetCursorPosition(30, 0);
+                        Console.Write(MabyMessage.Message);
+                        Console.SetCursorPosition(poss.Left, poss.Right);
+                    }
+
+
                     int move = TryGetMove();
 
                     if (move != -1)
@@ -153,5 +197,16 @@ internal class TicTacToeGameLoop
             Console.Write("\n");
         }
         Console.Write("  x-->\n");
+    }
+
+    public void FillRect(char value, int x, int y, int w, int h)
+    {
+        string Line = new string(value, w);
+
+        for (int i = 0; i < h; i++)
+        {
+            Console.SetCursorPosition(x, y + i);
+            Console.Write(Line);
+        }
     }
 }
