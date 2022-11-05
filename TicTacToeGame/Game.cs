@@ -7,6 +7,8 @@ namespace TicTacToeGame;
 
 internal class Game
 {
+    bool GameRunning = false;
+
     Func<bool> HasWifi = System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable;
 
     const int PortUsed = 4123;
@@ -16,16 +18,16 @@ internal class Game
     //Client = new TcpClient(new IPEndPoint(IPAddress.Parse(LocalIP), PortUsed));
     TcpClient? Client = null;
     NetworkStream? NetworkStream = null;
-    TcpListener? Listener = null;
+    ConcurrentQueue<byte> Data = new ConcurrentQueue<byte>();
+    TcpListener? tcpListener = null;
 
     NetworkStream? OpponentDataStream = null;
 
-
-    TicTacToe game = new TicTacToe();
+    TicTacToeGameLoop gameLoop;
 
     public Game()
     {
-
+        gameLoop = new TicTacToeGameLoop(SendMove, TryGetMove);
     }
 
     public void Start()
@@ -48,19 +50,39 @@ internal class Game
             return;
         }
 
+        GameRunning = true;
+
         EstablishConnectionWithOpponent();
+
+        gameLoop.Start();
+
+        GameRunning = false;
     }
 
-    private async void EstablishConnectionWithOpponent()
+    private void EstablishConnectionWithOpponent()
     {
+        if (NetworkStream is not null)
+        {
+            NetworkStream.Dispose();
+            NetworkStream = null;
+        }
         if (Client is not null)
         {
             Client.Dispose();
             Client = null;
         }
+        if (OpponentDataStream is not null)
+        {
+            OpponentDataStream.Dispose();
+            OpponentDataStream = null;
+        }
+        if (tcpListener is not null)
+        {
+            tcpListener.Stop();
+            tcpListener = null;
+        }
 
-
-        TcpListener tcpListener = new TcpListener(IPAddress.Parse(LocalIP), PortUsed);
+        tcpListener = new TcpListener(IPAddress.Parse(LocalIP), PortUsed);
 
         tcpListener.Start();
 
@@ -96,20 +118,8 @@ internal class Game
         }
 
         NetworkStream = Client.GetStream();
-        Console.WriteLine("Connection Made :D");
-        Thread.Sleep(1000);
-        Console.Clear();
-        GameLoop();
 
-        Console.ReadLine();
-    }
-
-    /// <summary>
-    /// Used for when there is a connection
-    /// </summary>
-    private void GameLoop()
-    {
-        ConcurrentQueue<byte> Data = new ConcurrentQueue<byte>();
+        Data = new ConcurrentQueue<byte>();
 
         Task DataStreamReader = new Task(() =>
         {
@@ -125,33 +135,48 @@ internal class Game
                 }
 
                 Thread.Sleep(20); // 20ms = ~50hrz
+
+                if (!GameRunning)
+                    return;
             }
         }
         );
+
         DataStreamReader.Start();
 
-        Console.WriteLine("Data: ");
+        Console.Clear();
+    }
 
-        try
+    // Functions for the GameLoop
+
+    /// <summary>
+    /// Gets the last send byte and treats that as the move
+    /// </summary>
+    /// <returns></returns>
+    private int TryGetMove()
+    {
+        int move = -1;
+        while (Data.Count != 0 && Data.TryDequeue(out byte Value))
         {
-            while (true)
-            {
-                while (Data.Count != 0)
-                {
-                    if (Data.TryDequeue(out byte Value))
-                    {
-                        Console.Write((char)Value);
-                        NetworkStream.WriteByte(Value);
-                    }
-                }
-
-                Thread.Sleep(20);
-            }
+            move = Value;
         }
-        catch (Exception e)
-        {
 
-        }
+        if (move < 0 || move > 8)
+            return -1;
+        else
+            return move;
+    }
+
+    /// <summary>
+    /// Sends a value between 0 and 8 to the other player
+    /// </summary>
+    private void SendMove(int move)
+    {
+        if (move < 0 || move > 8)
+            return;
+
+        if (NetworkStream is not null)
+            NetworkStream.WriteByte((byte)move);
     }
 
     ~Game()
@@ -162,5 +187,8 @@ internal class Game
             Client.Dispose();
         if (OpponentDataStream is not null)
             OpponentDataStream.Dispose();
+        if (tcpListener is not null)
+            tcpListener.Stop();
+        GameRunning = false;
     }
 }
