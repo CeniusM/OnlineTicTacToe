@@ -1,5 +1,5 @@
 import socket
-import sys
+from tictactoe import TicTacToe
 
 
 def _get_server_address():
@@ -9,40 +9,37 @@ def _get_server_address():
     return ip_address, port
 
 
-sequence = iter(bytes("hej med dig cenius, hvordan gaar det i din ende?", 'ascii'))
-
-
-def _loop(server_address):
+def _get_socket(server_address) -> socket:
     try:
-        # Create a TCP/IP socket
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        # Connect the socket to the port where the server is listening
-        # server_address = ('localhost', 10000)
 
         print('connecting to %s port %s...' % server_address, end='')
         sock.connect(server_address)
         print('ok')
 
-        sock.sendall(b"Hi Cenius! Let's rock!")
-
-        while True:
-            data = sock.recv(1024)
-            print('received "%s"' % data)
-            sock.sendall(next(sequence).to_bytes(1, 'big'))
-            #amount_received += len(data)
+        #sock.sendall(b"Hi player 1! Let's rock!")
+        return sock
+        #while True:
+        #    data = sock.recv(1024)
+        #    print('received "%s"' % data)
+        #    #sock.sendall(next(sequence).to_bytes(1, 'big'))
+        #    #amount_received += len(data)
 
     finally:
-        print('closing socket...', end='')
-        sock.close()
-        print('ok')
+        pass
+    #    print('closing socket...', end='')
+    #    sock.close()
+    #    print('ok')
 
 
 def run():
     server_address = _get_server_address()
-    _loop(server_address)
+    sock = _get_socket(server_address)
+    send = lambda pos: sock.sendall(pos.to_bytes(1, 'big'))
+    receive = lambda: int.from_bytes(sock.recv(1), 'big')
+    ttt = TicTacToe(send, receive)
+    ttt.run()
 
 
-# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     run()
