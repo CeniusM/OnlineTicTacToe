@@ -1,6 +1,6 @@
 ﻿
 
-namespace TicTacToe;
+namespace TicTacToeEngine;
 
 internal class TicTacToe : ITicTacToe
 {
