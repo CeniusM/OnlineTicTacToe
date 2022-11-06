@@ -5,7 +5,12 @@ from tictactoe import TicTacToe
 
 
 def _get_server_address():
-    return "192.168.68.62", 4123
+    # return "192.168.1.13", 4123
+
+    print("Insert ip adress")
+    ipAdress = input()
+    return ipAdress, 4123
+
     # ip_address = input("Enter server ip address:")
     # port = input("Enter server port number:")
     # return ip_address, port
