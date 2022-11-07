@@ -14,6 +14,7 @@ internal class TicTacToeGameLoop
     public bool IsRunning { get; private set; }
 
     private TicTacToe game = new TicTacToe();
+    private int LastMessageSize = 0;
 
     /// <summary>
     /// SendMove will send an int from 0 to 8 to indicate a move.
@@ -70,7 +71,8 @@ internal class TicTacToeGameLoop
                     if (MabyMessage.MessageReady)
                     {
                         (int Left, int Right) poss = Console.GetCursorPosition();
-                        FillRect(' ', 30, 0, MabyMessage.Message.Length, 1);
+                        FillRect(' ', 30, 0, LastMessageSize, 1);
+                        LastMessageSize = MabyMessage.Message.Length;
                         Console.SetCursorPosition(30, 0);
                         Console.Write(MabyMessage.Message);
                         Console.SetCursorPosition(poss.Left, poss.Right);
@@ -122,7 +124,8 @@ internal class TicTacToeGameLoop
                     if (MabyMessage.MessageReady)
                     {
                         (int Left, int Right) poss = Console.GetCursorPosition();
-                        FillRect(' ', 30, 0, MabyMessage.Message.Length, 1);
+                        FillRect(' ', 30, 0, LastMessageSize, 1);
+                        LastMessageSize = MabyMessage.Message.Length;
                         Console.SetCursorPosition(30, 0);
                         Console.Write(MabyMessage.Message);
                         Console.SetCursorPosition(poss.Left, poss.Right);
